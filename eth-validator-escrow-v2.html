@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum Validator Escrow Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --gray-light: #f3f4f6;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #1f2937;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--gray-light);
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #111827;
+        }
+
+        .sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .calculations, .visualization {
+            padding: 1.5rem;
+            background: var(--gray-light);
+            border-radius: 8px;
+        }
+
+        .input-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .results-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+
+        .visualization {
+            background: white;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .result-card {
+            background: var(--primary-light);
+            padding: 1rem;
+            border-radius: 6px;
+        }
+
+        .result-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--primary);
+        }
+
+        .result-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .formula-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .formula-section code {
+            display: block;
+            background: var(--gray-light);
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .sections {
+                grid-template-columns: 1fr;
+            }
+            .input-grid {
+                grid-template-columns: 1fr;
+            }
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ethereum Validator Escrow Calculator</h1>
+        </div>
+
+        <div class="sections">
+            <div class="calculations">
+                <div class="input-section">
+                    <h3>Parameters</h3>
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label for="initialEscrowRatio">Initial Escrow Ratio (%)</label>
+                            <input type="number" id="initialEscrowRatio" value="20" min="1" max="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="minEscrowRatio">Minimum Escrow Ratio (%)</label>
+                            <input type="number" id="minEscrowRatio" value="5" min="1" max="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="targetValidators">Target Validators</label>
+                            <input type="number" id="targetValidators" value="1000" min="1">
+                        </div>
+                        <div class="input-group">
+                            <label for="currentValidators">Current Validators</label>
+                            <input type="number" id="currentValidators" value="0" min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="alpha">Alpha (α) - Release Rate</label>
+                            <input type="number" id="alpha" value="0.5" step="0.1" min="0.1" max="1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="results-section">
+                    <h3>Results</h3>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h4>Current Escrow Ratio</h4>
+                            <div id="currentEscrowRatio" class="result-value">0%</div>
+                        </div>
+                        <div class="result-card">
+                            <h4>Required Escrow</h4>
+                            <div id="currentEscrowAmount" class="result-value">0 ETH</div>
+                        </div>
+                        <div class="result-card">
+                            <h4>Total Stake Value</h4>
+                            <div id="totalStakeValue" class="result-value">0 ETH</div>
+                        </div>
+                        <div class="result-card">
+                            <h4>Escrow Per Validator</h4>
+                            <div id="escrowPerValidator" class="result-value">0 ETH</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="formula-section">
+                    <h3>Formula</h3>
+                    <code>E = max(Rₘᵢₙ, R₀ * (1 - (V/V*)^α)) * (V * 32)</code>
+                    <p>Where:</p>
+                    <ul>
+                        <li>E = Required escrow amount in ETH</li>
+                        <li>R₀ = Initial escrow ratio</li>
+                        <li>Rₘᵢₙ = Minimum escrow ratio</li>
+                        <li>V = Current validators</li>
+                        <li>V* = Target validators</li>
+                        <li>α = Release rate parameter</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="visualization">
+                <h3>Escrow Release Curve</h3>
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ETH_PER_VALIDATOR = 32;
+        let chart;
+
+        function calculateEscrow(validators, initialRatio, minRatio, targetValidators, alpha) {
+            const totalStake = validators * ETH_PER_VALIDATOR;
+            const ratio = Math.max(
+                minRatio / 100,
+                (initialRatio / 100) * (1 - Math.pow(validators / targetValidators, alpha))
+            );
+            return {
+                ratio: ratio * 100,
+                amount: totalStake * ratio,
+                perValidator: totalStake * ratio / (validators || 1)
+            };
+        }
+
+        function generateChartData() {
+            const initialRatio = parseFloat(document.getElementById('initialEscrowRatio').value);
+            const minRatio = parseFloat(document.getElementById('minEscrowRatio').value);
+            const targetValidators = parseFloat(document.getElementById('targetValidators').value);
+            const alpha = parseFloat(document.getElementById('alpha').value);
+            const points = 50;
+            
+            const data = [];
+            const ratioData = [];
+            const labels = [];
+
+            for (let i = 0; i <= points; i++) {
+                const validators = (i / points) * targetValidators * 1.5;
+                const result = calculateEscrow(validators, initialRatio, minRatio, targetValidators, alpha);
+                
+                labels.push(Math.round(validators));
+                data.push(result.amount);
+                ratioData.push(result.ratio);
+            }
+
+            return { labels, data, ratioData };
+        }
+
+        function updateCalculator() {
+            const initialRatio = parseFloat(document.getElementById('initialEscrowRatio').value);
+            const minRatio = parseFloat(document.getElementById('minEscrowRatio').value);
+            const targetValidators = parseFloat(document.getElementById('targetValidators').value);
+            const alpha = parseFloat(document.getElementById('alpha').value);
+            const currentValidators = parseFloat(document.getElementById('currentValidators').value);
+
+            const result = calculateEscrow(
+                currentValidators,
+                initialRatio,
+                minRatio,
+                targetValidators,
+                alpha
+            );
+
+            const totalStake = currentValidators * ETH_PER_VALIDATOR;
+
+            document.getElementById('currentEscrowRatio').textContent = 
+                result.ratio.toFixed(2) + '%';
+            document.getElementById('currentEscrowAmount').textContent = 
+                result.amount.toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ETH';
+            document.getElementById('totalStakeValue').textContent = 
+                totalStake.toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ETH';
+            document.getElementById('escrowPerValidator').textContent = 
+                (currentValidators ? result.perValidator.toFixed(2) : '0') + ' ETH';
+
+            const { labels, data, ratioData } = generateChartData();
+            
+            if (chart) {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = data;
+                chart.data.datasets[1].data = ratioData;
+                chart.update();
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('chart').getContext('2d');
+            const { labels, data, ratioData } = generateChartData();
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Required Escrow (ETH)',
+                        data: data,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        yAxisID: 'y',
+                        tension: 0.4
+                    }, {
+                        label: 'Escrow Ratio (%)',
+                        data: ratioData,
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        fill: true,
+                        yAxisID: 'y1',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Number of Validators'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Escrow Amount (ETH)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Escrow Ratio (%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Add event listeners to all inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', updateCalculator);
+        });
+
+        // Initialize the calculator
+        initChart();
+        updateCalculator();
+    </script>
+</body>
+</html>
